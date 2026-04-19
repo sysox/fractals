@@ -1,171 +1,96 @@
-# Fractal Framework — Assessment Spec (v1.0)
-
-## Goal
-Define a minimal, extensible, unified framework for fractals using:
-- Split + Transform
-- State evolution
-- Evaluator-based parameters
-- Visible + latent objects
-- Color derived from state
-
----
+# Fractal Framework — Assessment Spec (v1.1)
 
 ## Core Principle
-S_{t+1} = Transform(Split(S_t))
+
+S_{t+1} = Cull(Transform(Split(S_t)))
 
 ---
 
-## State Model
-State = set of Objects
+## Execution Modes
+
+mode ∈ {map, global, sequence}
+
+- map: independent per-object operations
+- global: full-state operations
+- sequence: ordered, left-to-right fold (turtle)
+
+---
+
+## Operators
+
+Split(State, context, mode) -> State  
+Transform(State, context, mode) -> State  
+Cull(State, context) -> State (optional)
+
+---
+
+## State
+
+State = set (or sequence) of Objects
 
 Object =
 - type
-- visibility (visible | latent)
+- visibility: visible | latent
 - content
 
 ---
 
-## Object Types
-Visible:
-- point, line, polygon, curve
+## Latent Objects
 
-Latent:
-- scalar field, color field, control field, dynamical object, guide geometry
+- part of State
+- created/updated by Split/Transform
+- persist across iterations
+- accessed via:
 
----
-
-## Core Operators
-Split(object, context) -> [objects]  
-Transform(objects, context) -> [objects]
+query(latent_objects, context) -> value
 
 ---
 
-## Parameter System
+## Parameters
+
 Param(context) -> value
-
-Examples:
-- Color(context)
-- SplitCount(context)
-- Probability(context)
-- Scale(context)
 
 ---
 
 ## Context
+
 - object
 - state
 - parent
 - depth
-- local_coords (optional)
 - rng
 - latent_objects
+- index? (sequence mode)
+- neighbors? (optional)
 
 ---
 
-## Splitting Strategies (concept)
-- point → clone / radial
-- line → subdivision
-- polygon → triangulation / grid
-- triangle → recursive split
-- curve → parameter split
+## Color
 
----
-
-## Extension Strategies (concept)
-- replication
-- branching
-- radial growth
-- contractive refinement
-- expansive growth
-
----
-
-## Modes
-Contractive: children inside parent  
-Expansive: free growth  
-Mixed: both
-
----
-
-## Randomness
-rng passed via context
-
----
-
-## State Variables
-- iteration/depth
-- escape time
-- accumulated metrics
-- branch index
-
-Principle: store summaries, not full history
-
----
-
-## Color System
 color = ColorSpec(context)
 
-ColorSpec(context) -> color
+---
 
-Modes:
-- state-based (escape time)
-- local field (geometry gradient)
+## Mandelbrot / Julia
 
-Latent color fields ensure coherence
+Special case:
+
+- Split = identity
+- Transform = iterative function
+- mode = map
+- stop = escape or max_iter
 
 ---
 
-## Stop Conditions
+## Stop
+
 - size(object) < ε
 - total_count > N
-(optional depth limit)
 
----
-
-## Size
-size(object) -> scalar
-
----
-
-## Rendering
-Render only visible objects, may query latent ones
-
----
-
-## Capabilities
-Supports:
-- recursive fractals
-- stochastic systems
-- trees
-- Mandelbrot / Julia
-- hybrid systems
-
----
-
-## Strengths
-- minimal
-- unified
-- extensible
-- supports randomness
-- logical color system
-
----
-
-## Weaknesses
-- Transform complexity
-- state growth
-- implicit evaluation
-
----
-
-## Open Questions
-- Is Split + Transform sufficient?
-- Is latent object model correct?
-- Is color purely derived?
-- Are evaluators optimal?
-- Is it still minimal?
+size = SizeEvaluator(context)
 
 ---
 
 ## Core Statement
-Fractal = iterative transformation of visible and latent objects via Split + Transform.
+
+Fractal = iterative transformation of visible and latent objects via Split and Transform, executed under a defined mode (map, global, or sequence), with all parameters expressed as evaluators over context.
