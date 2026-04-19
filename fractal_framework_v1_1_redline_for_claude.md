@@ -1,70 +1,40 @@
-# Fractal Framework — Merged v1.1 Redline
+# Fractal Framework — v1.1 Frozen Draft
 
-This document is a **keep / change / add** redline against the current v1.1 kernel.
-It is intended as a direct implementation-oriented refinement pass.
+## Goal
+Define a minimal but implementation-ready framework for fractal and self-similar generative systems.
+
+The framework should support:
+- recursive geometric fractals
+- stochastic fractals
+- L-systems and turtle systems
+- escape-time / evaluation fractals
+- hybrid systems combining visible geometry, latent structure, and evaluator-driven control
 
 ---
 
-## Keep
+## Core Principle
 
-These should stay unchanged in spirit.
-
-### 1. Top-level law
-```text
+\[
 S_{t+1} = Transform(Split(S_t))
-```
+\]
 
-Keep this as the conceptual identity.
+This remains the **conceptual top-level law**.
 
-### 2. Execution modes
-- set
-- sequence
-- evaluation
-
-This is the most important refinement and should remain core.
-
-### 3. Domain split
-- fixed domain
-- dynamic domain
-
-Keep this.
-
-### 4. Local / global context split
-Keep this exactly.
-
-### 5. Latent lifecycle categories
-- persistent
-- recomputed
-- ephemeral
-
-Keep this taxonomy.
-
-### 6. Keep/prune logic
-```text
-Keep(unit, context) -> bool
-```
-
-Keep as mandatory.
+It describes the evolution of state at the highest level, while concrete execution semantics are defined by the runtime mode.
 
 ---
 
-## Change
+## State
 
-These are the main places where the kernel should be tightened.
+A state contains:
 
-### 1. Change `State`
-Current:
-```text
-State:
-- carrier
-- iteration
-- latent
-- summary
-- mode
-- domain
-```
+- `carrier`
+- `iteration`
+- `mode`
+- `domain`
+- `latent`
+- `summary`
 
-Replace with:
 ```text
 State:
 - carrier
@@ -75,140 +45,430 @@ State:
 - summary
 ```
 
-Reason: puts semantic control fields first and derived/support fields later.
+### Meaning
+- `carrier` = the structured evolving support of the state
+- `iteration` = current step index
+- `mode` = execution semantics
+- `domain` = whether support is fixed or generated
+- `latent` = non-rendered but queryable control/evaluation structures
+- `summary` = derived compact information about the current state
 
 ---
 
-### 2. Change `carrier` wording
-Current:
-```text
-carrier = set | sequence | grid
-```
+## Carrier
 
-Replace with:
-```text
-carrier = the structured evolving support of the state
+`carrier` is the structured evolving support of the state.
 
 v1.1 carrier kinds:
-- set
-- sequence
-- grid
-```
 
-Reason: avoids making it sound like the list is a final ontology.
+- `set`
+- `sequence`
+- `grid`
 
----
+### Intended meaning
+- `set` = unordered or weakly ordered evolving units
+- `sequence` = ordered units with position-dependent meaning
+- `grid` = fixed sample lattice or sample field
 
-### 3. Change core operators
-Current:
-```text
-Split(unit, context) -> units
-Transform(units_or_state, context) -> units_or_state
-Keep(unit, context) -> bool
-Size(unit, context) -> scalar
-```
-
-Replace with:
-```text
-Split(unit, context) -> emitted_units
-Keep(unit, context) -> bool
-Size(unit, context) -> scalar
-```
-
-and define transform **by mode**:
-
-```text
-TransformSet(emitted_units, context) -> emitted_units
-TransformSequence(sequence, context) -> sequence
-TransformEvaluation(sample_or_grid_state, context) -> sample_or_grid_state
-```
-
-Reason: `units_or_state` is too vague and will become a real implementation problem.
+This list is the **v1.1 carrier set**, not a final ontology.
 
 ---
 
-### 4. Change aggregation section
-Current:
-- union
-- chain
-- update
+## Execution Modes
 
-Keep the idea, but rewrite as:
+The framework defines three execution modes.
 
-```text
-Aggregation is mode-defined:
+### 1. Set mode
+For independently evolving elements.
 
-- set mode: Union
-- sequence mode: Chain
-- evaluation mode: Update
-```
+Examples:
+- Sierpinski
+- Koch-like systems
+- recursive geometric refinement
+- many stochastic branching systems
 
-Add:
-```text
-Aggregation is an execution semantic, not a user-defined fractal operator.
-```
+Semantics:
+- `Split` is applied per unit
+- `TransformSet` acts over emitted units
+- aggregation = `Union`
 
-Reason: keeps minimality.
+### 2. Sequence mode
+For ordered symbolic or path-based evolution.
 
----
+Examples:
+- L-systems
+- turtle systems
+- context-sensitive rewrite systems
 
-### 5. Change sequence mode wording
-Current wording is good, but add one hard rule:
+Semantics:
+- `Split` is a **batch-parallel rewrite** over the current sequence generation
+- all rewrites are computed before transform begins
+- `TransformSequence` is a left-to-right fold / interpreter
+- aggregation = `Chain`
 
+**Normative rule**
 ```text
 In sequence mode, Split is batch-parallel over the current sequence generation.
 All rewrites are computed before TransformSequence begins.
 ```
 
-Reason: this must be normative, not implicit.
+### 3. Evaluation mode
+For fixed-domain iterative refinement.
+
+Examples:
+- Mandelbrot
+- Julia
+- orbit evaluation systems
+- escape-time sample updates
+
+Semantics:
+- `Split = identity` or explicit domain refinement if the system defines it
+- `TransformEvaluation` updates evaluation state
+- aggregation = `Update`
+
+For v1.1, the formal contract is:
+
+```text
+TransformEvaluation(grid_state, context) -> grid_state
+```
+
+Per-sample vectorization is treated as an implementation strategy inside this mode.
 
 ---
 
-### 6. Change fixed/dynamic domain wording
-Current:
-- fixed domain mainly in evaluation mode
-- dynamic domain mainly in set / sequence modes
+## Domain Types
 
-Replace with:
-```text
-Typical pairing:
+### Fixed domain
+Support does not grow.
+
+Examples:
+- pixel grid
+- fixed sample lattice
+- fixed evaluation domain
+
+### Dynamic domain
+Support is generated, expanded, or structurally rewritten during evolution.
+
+Examples:
+- recursive geometry
+- branching systems
+- symbolically generated paths
+
+### Typical pairing
 - evaluation mode <-> fixed domain
 - set / sequence modes <-> dynamic domain
 
 Other pairings are allowed only if explicitly defined by the system.
-```
-
-Reason: stronger without being overly rigid.
 
 ---
 
-### 7. Change latent API wording
-Current:
+## Visible and Latent Structure
+
+Each evolving unit may contribute to either visible or latent structure.
+
+### Visible
+Rendered directly.
+
+Examples:
+- point
+- line
+- polygon
+- curve
+- stroke
+- visible sample output
+
+### Latent
+Not rendered directly by default, but used for control, querying, evaluation, and coherence.
+
+Examples:
+- scalar field
+- color field
+- occupancy field
+- guide geometry
+- spatial index
+- turtle stack/state
+- control summaries
+
+---
+
+## Carrier Elements
+
+Carrier elements are the units of evolution.
+
+In v1.1, carrier elements are represented as objects or object-like samples depending on carrier kind:
+
+- `set` -> objects
+- `sequence` -> ordered objects
+- `grid` -> samples / cells / point-states
+
+This means grid-based systems do **not** need to instantiate heavyweight geometric objects for every sample.
+
+---
+
+## Object Form
+
+For object-based carriers, the basic unit form is:
+
 ```text
-UpdateLatent(state, previous_latent) -> latent
-Sample(name, query, context) -> value
-QueryLatent(type, query, context) -> result
+Object:
+- type
+- visibility
+- content
+- attrs
 ```
 
-Replace with:
+Where:
+- `type` = semantic kind
+- `visibility` ∈ `{visible, latent}`
+- `content` = geometry / symbol / value payload
+- `attrs` = additional derived or control attributes
+
+---
+
+## Context
+
+Context is split into two parts.
+
+### LocalContext
+Information specific to the current unit.
+
+```text
+LocalContext:
+- object
+- parent
+- depth
+- index?
+- prev?
+- next?
+- neighbors?
+- local_to_global?
+```
+
+### GlobalContext
+Information about the whole environment.
+
+```text
+GlobalContext:
+- state
+- latent
+- summary
+- rng
+```
+
+This split prevents mixing per-unit and world-level information.
+
+---
+
+## Coordinate Semantics
+
+Latent queries operate in **global state-space coordinates by default**.
+
+If a system needs local coordinates, `LocalContext` may provide a `local_to_global` transform or equivalent mapping.
+
+So the default rule is:
+
+```text
+Latent field queries use global coordinates unless explicitly overridden by local context.
+```
+
+This applies to:
+- occupancy queries
+- color field sampling
+- density evaluation
+- guide field lookup
+
+---
+
+## Parameters
+
+All tunable behavior should be evaluator-based.
+
+```text
+Param(context) -> value
+```
+
+Examples:
+- `Scale(context)`
+- `Color(context)`
+- `Probability(context)`
+- `SplitCount(context)`
+- `BranchAngle(context)`
+
+This allows:
+- deterministic values
+- depth-dependent behavior
+- stochastic choice
+- field-driven control
+- parent- or neighbor-dependent variation
+
+---
+
+## Core Operators
+
+### Split
+```text
+Split(unit, context) -> emitted_units
+```
+
+Meaning:
+- subdivision
+- rewrite
+- replication
+- branching
+- identity emission
+- domain-local refinement
+
+### Transform
+Transform is **mode-specific**.
+
+```text
+TransformSet(emitted_units, context) -> emitted_units
+TransformSequence(sequence, context) -> sequence
+TransformEvaluation(grid_state, context) -> grid_state
+```
+
+This removes the previous ambiguity of a single overloaded transform signature.
+
+### Keep
+```text
+Keep(unit, context) -> bool
+```
+
+Used for pruning, rejection, density control, overlap control, and other filtering decisions.
+
+### Size
+```text
+Size(unit, context) -> scalar
+```
+
+`Size` is type-dependent.
+
+Examples:
+- line -> length
+- polygon -> area or diameter
+- curve -> length or bounding diameter
+- grid cell -> cell size
+
+There is no universal size formula across all unit types.
+
+---
+
+## Aggregation
+
+Aggregation is mode-defined:
+
+- set mode: `Union`
+- sequence mode: `Chain`
+- evaluation mode: `Update`
+
+Aggregation is an **execution semantic**, not a user-defined fractal operator.
+
+Its role is to construct the next carrier-form from emitted or transformed results.
+
+---
+
+## Pruning
+
+Pruning is explicitly defined through `Keep`.
+
+```text
+Prune(carrier, context) = { u in carrier | Keep(u, context) = true }
+```
+
+For sequence mode, pruning must preserve sequence order among retained elements.
+
+Typical pruning uses:
+- tiny element removal
+- invisibility removal
+- overlap rejection
+- density limiting
+- dead branch termination
+- budget control
+
+---
+
+## Latent Model
+
+Latent state is not just hidden geometry.
+It may include:
+- fields
+- indices
+- summaries
+- control structures
+- guide objects
+- evaluation helpers
+
+### Latent lifecycles
+
+#### Persistent
+Survives across iterations.
+
+#### Recomputed
+Rebuilt from current state each step.
+
+#### Ephemeral
+Exists only during one execution step.
+
+---
+
+## Latent API
+
 ```text
 UpdateLatent(state, previous_latent, context) -> latent
 Sample(latent_name, query, context) -> value
 QueryLatent(latent_type, query, context) -> result
 ```
 
-Reason: gives latent update access to execution context too.
+Examples:
+- sample a color field at a point
+- query occupancy over a region
+- query local density
+- query nearest guide object
 
 ---
 
-## Add
+## Summary
 
-These are the most important missing pieces.
+The framework stores summaries, not necessarily full history.
 
-### 1. Add explicit pipeline
-This is the biggest missing operational clarification.
+```text
+Summarize(state) -> summary
+```
 
-Add:
+Examples:
+- bounds
+- counts
+- density metrics
+- histograms
+- escape statistics
+- branch statistics
+
+---
+
+## Color
+
+Color may be derived from:
+- state-local metrics
+- latent fields
+- hybrid combinations
+
+Canonical color modes:
+
+- `state-based`
+- `field-based`
+- `hybrid`
+
+Examples:
+- escape-time coloring
+- depth-based coloring
+- field-coherent gradient coloring
+- geometry + latent blending
+
+---
+
+## Step Pipeline
+
+The runtime step is explicitly defined as:
 
 ```text
 Step(state):
@@ -223,201 +483,133 @@ Step(state):
 8. return next state
 ```
 
-Compact form:
-```text
+Compact operational form:
+
+\[
 S_{t+1} =
-  Summarize(
-    UpdateLatent(
-      Prune(
-        Transform(
-          Aggregate(
-            Split(S_t)
-          )
+\mathrm{Summarize}(
+  \mathrm{UpdateLatent}(
+    \mathrm{Prune}(
+      \mathrm{Transform}(
+        \mathrm{Aggregate}(
+          \mathrm{Split}(S_t)
         )
       )
     )
   )
-```
+)
+\]
 
-Note:
-- this is the operational form
-- the top-level conceptual identity remains `S_{t+1} = Transform(Split(S_t))`
+### Note
+This is the **operational execution form**.
+
+The conceptual identity remains:
+
+\[
+S_{t+1} = \mathrm{Transform}(\mathrm{Split}(S_t))
+\]
 
 ---
 
-### 2. Add explicit prune definition
-Add:
+## Rendering
 
 ```text
-Prune(carrier, context) = { u in carrier | Keep(u, context) = true }
+Render(visible, latent, summary) -> output
 ```
 
-For sequence mode, pruning must preserve sequence order among retained elements.
+Only visible elements are rendered directly, but rendering may query latent state and summary information.
+
+Examples:
+- thickness from density
+- color from latent field
+- debug overlays from guide geometry
+- occupancy visualizations
 
 ---
 
-### 3. Add carrier/object relationship
-Add:
+## Canonical Mappings
 
-```text
-Carrier elements are the units of evolution.
+### L-systems
+- carrier = `sequence`
+- mode = `sequence`
+- domain = `dynamic`
+- split = parallel symbol rewrite
+- transform = turtle fold
+- may require `index`, `prev`, `next`, `neighbors`, `stack view`
 
-In v1.1, carrier elements are represented as objects or object-like samples,
-depending on the carrier kind:
-- set -> objects
-- sequence -> ordered objects
-- grid -> samples / cells / point-states
-```
+### Mandelbrot / Julia
+- carrier = `grid`
+- mode = `evaluation`
+- domain = `fixed`
+- split = identity
+- transform = iterative grid-state update
+- implementation may be vectorized internally
 
-Reason: clarifies that grid evaluation need not instantiate heavyweight geometric objects.
-
----
-
-### 4. Add sequence-specific context rule
-Add:
-
-```text
-Sequence mode may require:
-- index
-- prev / next
-- neighbors
-- stack view
-
-These are optional in generic context but required when the rewrite/interpreter depends on them.
-```
+### Recursive geometry
+- carrier = `set`
+- mode = `set`
+- domain = `dynamic`
+- split = subdivision / replication / branching
+- transform = geometric map/filter over emitted units
 
 ---
 
-### 5. Add design-debt section
-Add a short final section:
+## Recommended Implementation Stance
 
-## Open design debt
-- topology / connectivity model
-- carrier extension beyond set/sequence/grid
-- whether latent fields are first-class objects or services
-- whether transform dispatch remains mode-based or becomes typed interface families
-- whether adaptive domains require a third domain subtype beyond fixed/dynamic
+If implementing v1.1, prefer:
+- `TransformSet`
+- `TransformSequence`
+- `TransformEvaluation`
 
-Reason: keeps unresolved issues visible without polluting the kernel.
-
----
-
-### 6. Add explicit note on color
-Doc A had a useful distinction that should not be lost.
-
-Add:
-
-```text
-Color may be derived from:
-- state-local metrics
-- latent fields
-- hybrid combination
-
-Canonical color modes:
-- state-based
-- field-based
-- hybrid
-```
-
----
-
-## Recommended implementation stance
-
-If implementing now, prefer:
-
-```text
-TransformSet
-TransformSequence
-TransformEvaluation
-```
-
-instead of one polymorphic `Transform(units_or_state, context)` signature.
+rather than one polymorphic transform signature.
 
 Likewise, treat:
 - `set`
 - `sequence`
 - `grid`
 
-as three carrier backends under one framework interface.
+as three carrier backends under one unified framework interface.
+
+Execution modes share a unified semantic interface but may use specialized runtime backends.
 
 ---
 
-## Final instruction for Claude
+## Non-negotiable v1.1 Additions
 
-Please use this redline to revise the kernel into a cleaner **v1.1 implementation-ready spec**.
+Compared to v1.0, v1.1 explicitly includes:
 
-Priority order:
-1. resolve operator contracts
-2. insert the explicit step pipeline
-3. make sequence-mode rewrite semantics normative
-4. clarify carrier/object/sample relationship
-5. preserve minimality — do not over-generalize
+1. execution mode
+2. domain type
+3. local vs global context
+4. latent query/update API
+5. keep/prune logic
+6. aggregation semantics
+7. explicit step pipeline
+8. sequence-mode batch rewrite rule
+9. carrier/object/sample clarification
+10. latent coordinate semantics
 
-The goal is:
-- keep the unified conceptual identity
-- but make the runtime semantics explicit enough that an engineer could build a first engine from it
+---
 
-<!--
-Claude Assessment of this Redline (2026-04-19)
+## Open Design Debt
 
-== Overall verdict ==
+The following are intentionally deferred beyond the frozen v1.1 core:
 
-High quality. This redline directly resolves the three main blockers identified in
-the Claude/Gemini assessments embedded in the kernel. Would advance
-implementation-readiness from ~60% to ~75-80%.
+- topology / connectivity model
+- carrier extension beyond set / sequence / grid
+- whether latent fields are first-class objects or query services
+- whether adaptive domains require a third subtype beyond fixed / dynamic
+- whether future versions should formalize typed operator families more broadly
+- composition rules for multiple transforms / multiple latent systems
 
-== What it resolves correctly ==
+These remain visible as tracked design debt, not unresolved core ambiguity.
 
-1. Transform signature — The biggest blocker. Replacing Transform(units_or_state, context)
-   with three typed operators (TransformSet, TransformSequence, TransformEvaluation)
-   is the right call. Eliminates the deferred type error.
+---
 
-2. UpdateLatent placement — The explicit 8-step pipeline Step(state) solves the ambiguity
-   about when UpdateLatent runs. The compact formula
-   Summarize(UpdateLatent(Prune(Transform(Aggregate(Split(S_t))))))
-   is consistent with the pipeline and directly usable.
+## Core Statement
 
-3. Split batching contract — Making the sequence-mode parallel batch rule normative
-   (not just implied in canonical mappings) closes the implementation trap.
+A fractal is an iterative evolution of explicit state over a carrier, executed under a specific mode, with visible and latent structure, evaluator-driven parameters, and optional pruning.
 
-4. Keep/Prune formal connection — Prune(carrier, context) = { u in carrier | Keep(u, context) = true }
-   was explicitly missing and is now defined.
-
-5. Domain/mode coupling — "Typical pairing... other pairings allowed only if explicitly defined"
-   is meaningfully stronger than "mainly."
-
-6. UpdateLatent context arg — Small but correct. Latent update logic clearly needs
-   execution context.
-
-7. Design-debt section — Honest accounting. Keeps open issues visible without
-   polluting the kernel.
-
-== Remaining gaps not resolved ==
-
-- Topology / connectivity: Deferred to design debt — correct.
-- Latent spatial coordinate system: NOT addressed. Sample(latent_name, query, context)
-  with no coordinate system definition means latent queries are still black-box
-  functions at runtime. Gemini flagged this; the redline does not engage with it.
-  This is the most consequential omission.
-- Grid cell as Object vs. lightweight sample: Partially addressed
-  (grid -> samples/cells/point-states) but no formal distinction.
-- TransformEvaluation(sample_or_grid_state, ...): "sample_or_grid_state" retains a
-  mild type ambiguity — per-sample or whole-grid? Should be resolved explicitly.
-
-== Minor observations ==
-
-- State field reordering (Change #1) is cosmetic; correct but low-value.
-- Carrier wording change (Change #2) is good — removes false closure on the ontology.
-- Color modes (Add #6) is a useful recovery from Doc A — restores specificity that
-  was demoted to a mere Param example.
-- Compact pipeline form drops context derivation (Step 1) from the notation —
-  intentionally implicit, but worth noting when implementing.
-
-== Recommended addition after applying this redline ==
-
-Add one statement on latent coordinate space to close Gemini's concern:
-  "Latent field queries operate in global state-space coordinates unless explicitly
-  overridden by a LocalContext transform."
-This would close the last major black-box without adding new design burden.
--->
-
+\[
+S_{t+1} = Transform(Split(S_t))
+\]
